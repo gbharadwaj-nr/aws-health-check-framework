@@ -15,7 +15,8 @@ from region_discovery import discover_regions
 from checks.ec2 import check_ec2
 from checks.rds import check_rds
 from checks.asg import check_asg
-from checks.cloudwatch import check_cloudwatch  
+from checks.cloudwatch import check_cloudwatch
+from Checks.lambda_health import check_lambda  
 
 
 # ---------------------------------------------------------
@@ -220,6 +221,52 @@ def main():
             )
 
             print(f"{'':15}Reason : {alarm['reason']}")
+            
+    lambda_data = check_lambda(session, regions)
 
+    print("\n")
+    print("=" * 70)
+    print("LAMBDA HEALTH")
+    print("=" * 70)
+
+    if lambda_data["total"] == 0:
+
+        print("No Production Lambda Functions Found")
+
+    else:
+
+        print(f"Healthy Functions   : {lambda_data['healthy']}")
+        print(f"Unhealthy Functions : {lambda_data['unhealthy']}")
+        print(f"Total Functions     : {lambda_data['total']}")
+
+        print("\nDetails")
+        print("-" * 130)
+
+        print(
+            f"{'Region':15}"
+            f"{'Function Name':45}"
+            f"{'Runtime':15}"
+            f"{'Errors':10}"
+            f"{'Status':12}"
+        )
+
+        print("-" * 130)
+
+        for function in lambda_data["functions"]:
+
+            print(
+                f"{function['region']:15}"
+                f"{function['name'][:43]:45}"
+                f"{function['runtime']:15}"
+                f"{function['errors']:<10}"
+                f"{function['status']:12}"
+            )
+
+            print(
+                f"{'':15}"
+                f"Memory={function['memory']}MB  "
+                f"Timeout={function['timeout']}s  "
+                f"State={function['state']}"
+            )
 if __name__ == "__main__":
     main()

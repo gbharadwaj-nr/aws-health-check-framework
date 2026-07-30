@@ -1,136 +1,159 @@
 """
 ===========================================================
-Lambda Health Check
+AWS Lambda Health Check
 ===========================================================
 """
 
-from datetime import datetime, timedelta, timezone
+from botocore.exceptions import ClientError
 
 
 def check_lambda(session, regions):
 
-    lambda_functions = []
-
     healthy = 0
     unhealthy = 0
 
-    print("\n")
-    print("=" * 70)
-    print("LAMBDA HEALTH")
-    print("=" * 70)
-
-    found_lambda = False
+    functions = []
 
     for region in regions:
 
-        lambda_client = session.client("lambda", region_name=region)
-        cloudwatch = session.client("cloudwatch", region_name=region)
+        client = session.client("lambda", region_name=region)
 
-        paginator = lambda_client.get_paginator("list_functions")
+        paginator = client.get_paginator("list_functions")
 
-        for page in paginator.paginate():
+        try:
 
-            for function in page["Functions"]:
+            for page in paginator.paginate():
 
-                name = function["FunctionName"]
+                for function in page["Functions"]:
 
-                # --------------------------------------------------
-                # Only Production Lambdas
-                # --------------------------------------------------
+                    name = function["FunctionName"]
 
-                lower = name.lower()
+                    lower = name.lower()
 
-                if (
-                    "prod" not in lower and
-                    "production" not in lower
-                ):
-                    continue
+                    # ------------------------------------------------------
+                    # Skip NON-PRODUCTION Lambdas
+                    # ------------------------------------------------------
 
-                found_lambda = True
+                    if (
+                        "preprod" in lower or
+                        "mspreprod" in lower or
+                        "sandbox" in lower or
+                        "dev" in lower or
+                        "test" in lower or
+                        "qa" in lower or
+                        "uat" in lower
+                    ):
+                        continue
 
-                runtime = function.get("Runtime", "-")
-                memory = function.get("MemorySize", "-")
-                timeout = function.get("Timeout", "-")
-                state = function.get("State", "Unknown")
-                modified = function.get("LastModified", "-")
+                    # ------------------------------------------------------
+                    # Keep ONLY Production Lambdas
+                    # ------------------------------------------------------
 
-                # --------------------------------------------------
-                # CloudWatch Errors
-                # --------------------------------------------------
+                    if (
+                        "production" not in lower and
+                        "-prod-" not in lower and
+                        "_prod_" not in lower and
+                        lower.endswith("-prod") is False
+                    ):
+                        continue
 
-                end = datetime.now(timezone.utc)
-                start = end - timedelta(hours=24)
+                    runtime = function.get("Runtime", "-")
+                    memory = function.get("MemorySize", 0)
+                    timeout = function.get("Timeout", 0)
 
-                response = cloudwatch.get_metric_statistics(
-                    Namespace="AWS/Lambda",
-                    MetricName="Errors",
-                    Dimensions=[
-                        {
-                            "Name": "FunctionName",
-                            "Value": name
-                        }
-                    ],
-                    StartTime=start,
-                    EndTime=end,
-                    Period=86400,
-                    Statistics=["Sum"]
-                )
+                    state = function.get("State", "Unknown")
+                    last_update = function.get(
+                        "LastUpdateStatus",
+                        "Unknown"
+                    )
 
-                datapoints = response["Datapoints"]
+                    # ------------------------------------------------------
+                    # CloudWatch Errors (Last 24 Hours)
+                    # ------------------------------------------------------
 
-                errors = 0
+                    errors = 0
 
-                if datapoints:
-                    errors = int(datapoints[0]["Sum"])
+                    try:
 
-                if state == "Active" and errors == 0:
-                    status = "Healthy"
-                    healthy += 1
-                else:
-                    status = "Unhealthy"
-                    unhealthy += 1
+                        cloudwatch = session.client(
+                            "cloudwatch",
+                            region_name=region
+                        )
 
-                print(f"{name}")
-                print(f"  Region       : {region}")
-                print(f"  Runtime      : {runtime}")
-                print(f"  Memory       : {memory} MB")
-                print(f"  Timeout      : {timeout} sec")
-                print(f"  State        : {state}")
-                print(f"  Errors(24h)  : {errors}")
-                print(f"  Status       : {status}")
-                print()
+                        metrics = cloudwatch.get_metric_statistics(
+                            Namespace="AWS/Lambda",
+                            MetricName="Errors",
+                            Dimensions=[
+                                {
+                                    "Name": "FunctionName",
+                                    "Value": name
+                                }
+                            ],
+                            StartTime=__import__("datetime").datetime.utcnow()
+                                      - __import__("datetime").timedelta(days=1),
+                            EndTime=__import__("datetime").datetime.utcnow(),
+                            Period=86400,
+                            Statistics=["Sum"]
+                        )
 
-                lambda_functions.append({
+                        datapoints = metrics.get("Datapoints", [])
 
-                    "region": region,
-                    "name": name,
-                    "runtime": runtime,
-                    "memory": memory,
-                    "timeout": timeout,
-                    "state": state,
-                    "last_modified": modified,
-                    "errors": errors,
-                    "status": status
+                        if datapoints:
+                            errors = int(datapoints[0]["Sum"])
 
-                })
+                    except Exception:
+                        pass
 
-    if not found_lambda:
+                    # ------------------------------------------------------
+                    # Health Evaluation
+                    # ------------------------------------------------------
 
-        print("No Production Lambda Functions Found.")
+                    if (
+                        state == "Active"
+                        and last_update == "Successful"
+                        and errors == 0
+                    ):
+                        status = "Healthy"
+                        healthy += 1
 
-    print("=" * 70)
-    print("LAMBDA SUMMARY")
-    print("=" * 70)
+                    else:
+                        status = "Unhealthy"
+                        unhealthy += 1
 
-    print(f"Healthy Functions   : {healthy}")
-    print(f"Unhealthy Functions : {unhealthy}")
-    print(f"Total Functions     : {healthy + unhealthy}")
+                    functions.append({
+
+                        "region": region,
+
+                        "name": name,
+
+                        "runtime": runtime,
+
+                        "memory": memory,
+
+                        "timeout": timeout,
+
+                        "state": state,
+
+                        "last_update": last_update,
+
+                        "errors": errors,
+
+                        "status": status
+
+                    })
+
+        except ClientError as e:
+
+            print(f"Unable to query Lambda in {region}: {e}")
 
     return {
 
         "healthy": healthy,
+
         "unhealthy": unhealthy,
+
         "total": healthy + unhealthy,
-        "functions": lambda_functions
+
+        "functions": functions
 
     }

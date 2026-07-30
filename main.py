@@ -14,6 +14,7 @@ from region_discovery import discover_regions
 # Import Health Check Modules
 from checks.ec2 import check_ec2
 from checks.rds import check_rds
+from checks.asg import check_asg
 
 
 # ---------------------------------------------------------
@@ -150,6 +151,37 @@ def main():
     print(f"Available Databases : {rds_data['available']}")
     print(f"Unavailable         : {rds_data['unavailable']}")
     print(f"Total Databases     : {rds_data['total']}")
+
+    asg_data = check_asg(session, regions)
+
+    print("\n")
+    print("=" * 70)
+    print("AUTO SCALING GROUP SUMMARY")
+    print("=" * 70)
+
+    if asg_data["total"] == 0:
+
+        print("No Auto Scaling Groups Found")
+
+    else:
+
+        print(f"Healthy ASGs   : {asg_data['healthy']}")
+        print(f"Unhealthy ASGs : {asg_data['unhealthy']}")
+        print(f"Total ASGs     : {asg_data['total']}")
+
+        print("\nDetails")
+        print("-" * 70)
+
+        for group in asg_data["groups"]:
+
+            print(
+                f"{group['region']:15}"
+                f"{group['asg_name']:35}"
+                f"Desired={group['desired']} "
+                f"Current={group['current']} "
+                f"Healthy={group['healthy']} "
+                f"Status={group['status']}"
+            )
 
 
 if __name__ == "__main__":

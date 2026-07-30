@@ -13,6 +13,7 @@ from region_discovery import discover_regions
 
 # Import Health Check Modules
 from checks.ec2 import check_ec2
+from checks.rds import check_rds
 
 
 # ---------------------------------------------------------
@@ -139,6 +140,16 @@ def main():
     print(f"Total Instances   : {ec2_data['total']}")
 
     print("\nFramework Initialization Completed Successfully.")
+
+    rds_data = check_rds(session, regions)
+
+    print("\n" + "=" * 70)
+    print("RDS SUMMARY")
+    print("=" * 70)
+
+    print(f"Available Databases : {rds_data['available']}")
+    print(f"Unavailable         : {rds_data['unavailable']}")
+    print(f"Total Databases     : {rds_data['total']}")
 
 
 if __name__ == "__main__":

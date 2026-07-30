@@ -16,7 +16,7 @@ from checks.ec2 import check_ec2
 from checks.rds import check_rds
 from checks.asg import check_asg
 from checks.cloudwatch import check_cloudwatch
-from Checks.lambda_health import check_lambda  
+from checks.lambda_health import check_lambda  
 
 
 # ---------------------------------------------------------
@@ -221,7 +221,7 @@ def main():
             )
 
             print(f"{'':15}Reason : {alarm['reason']}")
-            
+
     lambda_data = check_lambda(session, regions)
 
     print("\n")

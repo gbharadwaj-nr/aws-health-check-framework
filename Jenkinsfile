@@ -154,7 +154,7 @@ pipeline {
             emailext(
                 subject: "AWS Daily Health Report - ${params.CLIENT}",
                 body: "Health Check completed successfully.",
-                attachmentsPattern: "output/**/*",
+                attachmentsPattern: "output/**",
                 to: "yourteam@symphonyai.com"
             )
             */

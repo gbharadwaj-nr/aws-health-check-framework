@@ -15,6 +15,7 @@ from region_discovery import discover_regions
 from checks.ec2 import check_ec2
 from checks.rds import check_rds
 from checks.asg import check_asg
+from checks.cloudwatch import check_cloudwatch  
 
 
 # ---------------------------------------------------------
@@ -182,7 +183,43 @@ def main():
                 f"Healthy={group['healthy']} "
                 f"Status={group['status']}"
             )
+    cloudwatch_data = check_cloudwatch(session, regions)
 
+    print("\n")
+    print("=" * 70)
+    print("CLOUDWATCH ALARMS")
+    print("=" * 70)
+
+    if cloudwatch_data["alarm_count"] == 0:
+
+        print("No CloudWatch Alarms in ALARM state")
+
+    else:
+
+        print(f"Active Alarms : {cloudwatch_data['alarm_count']}")
+
+        print("\nAlarm Details")
+        print("-" * 120)
+
+        print(
+            f"{'Region':15}"
+            f"{'Alarm Name':40}"
+            f"{'Metric':25}"
+            f"{'State':10}"
+        )
+
+        print("-" * 120)
+
+        for alarm in cloudwatch_data["alarms"]:
+
+            print(
+                f"{alarm['region']:15}"
+                f"{alarm['alarm_name'][:38]:40}"
+                f"{alarm['metric'][:23]:25}"
+                f"{alarm['state']:10}"
+            )
+
+            print(f"{'':15}Reason : {alarm['reason']}")
 
 if __name__ == "__main__":
     main()

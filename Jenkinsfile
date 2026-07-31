@@ -3,8 +3,11 @@ pipeline {
     agent any
 
     options {
+
         timestamps()
+
         timeout(time: 30, unit: 'MINUTES')
+
         buildDiscarder(logRotator(
             numToKeepStr: '30',
             artifactNumToKeepStr: '30'
@@ -37,20 +40,26 @@ pipeline {
     }
 
     environment {
+
         AWS_DEFAULT_REGION = 'us-east-1'
         PYTHONUNBUFFERED = '1'
+
     }
 
     stages {
 
         stage('Checkout Source') {
+
             steps {
+
                 checkout scm
 
                 script {
                     currentBuild.displayName = "#${BUILD_NUMBER} ${params.CLIENT}"
                 }
+
             }
+
         }
 
         stage('Install Python Dependencies') {
@@ -63,6 +72,7 @@ pipeline {
                 '''
 
             }
+
         }
 
         stage('Verify AWS Credentials') {
@@ -96,8 +106,11 @@ pipeline {
                         exit /b 1
                     )
                     '''
+
                 }
+
             }
+
         }
 
         stage('Run AWS Health Check') {
@@ -127,20 +140,30 @@ pipeline {
                     '''
 
                 }
+
             }
+
         }
 
-        stage('Archive Reports') {
+        stage('Verify Generated Reports') {
 
             steps {
 
                 bat '''
                 echo.
-                echo ======================================
-                echo OUTPUT FOLDER CONTENTS
-                echo ======================================
+                echo ==================================================
+                echo GENERATED REPORTS
+                echo ==================================================
                 dir output /s
                 '''
+
+            }
+
+        }
+
+        stage('Archive Reports') {
+
+            steps {
 
                 archiveArtifacts(
                     artifacts: 'output/**/*',
@@ -148,18 +171,29 @@ pipeline {
                     allowEmptyArchive: false
                 )
 
+            }
+
+        }
+
+        stage('Publish HTML Report') {
+
+            steps {
+
                 publishHTML(target: [
+
                     allowMissing: false,
                     alwaysLinkToLastBuild: true,
                     keepAll: true,
+
                     reportDir: 'output/latest',
                     reportFiles: 'Executive_Report.html',
                     reportName: 'AWS Daily Health Report'
+
                 ])
 
             }
 
-}
+        }
 
     }
 
@@ -168,31 +202,18 @@ pipeline {
         success {
 
             echo ''
-            echo '==============================================='
+            echo '=================================================='
             echo 'AWS Health Check Completed Successfully'
-            echo '==============================================='
-
-            /*
-            emailext(
-                subject: "AWS Daily Health Report - ${params.CLIENT}",
-                body: "Health Check completed successfully.",
-                attachmentsPattern: "output/**",
-                to: "yourteam@symphonyai.com"
-            )
-            */
-
-            /*
-            Teams Notification will be added later
-            */
+            echo '=================================================='
 
         }
 
         failure {
 
             echo ''
-            echo '==============================================='
+            echo '=================================================='
             echo 'AWS Health Check Failed'
-            echo '==============================================='
+            echo '=================================================='
 
         }
 
@@ -201,5 +222,7 @@ pipeline {
             cleanWs()
 
         }
+
     }
+
 }

@@ -20,6 +20,7 @@ from checks.cloudwatch import check_cloudwatch
 from checks.lambda_health import check_lambda
 
 from reports.report_utils import create_output_folder
+from reports.html_report import generate_html_report
 
 
 # ---------------------------------------------------------
@@ -203,6 +204,24 @@ def main():
 
     print(f"Healthy Lambda        : {lambda_data['healthy']}")
     print(f"Total Lambda          : {lambda_data['total']}")
+
+    generate_html_report(
+
+    output_folder,
+
+    account,
+
+    ec2_data,
+
+    rds_data,
+
+    asg_data,
+
+    cloudwatch_data,
+
+    lambda_data
+
+)
 
     print("\nFramework Initialization Completed Successfully.")
 

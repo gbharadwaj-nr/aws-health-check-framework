@@ -21,6 +21,7 @@ from checks.lambda_health import check_lambda
 
 from reports.report_utils import create_output_folder
 from reports.html_report import generate_html_report
+from reports.teams_notification import send_teams_notification
 
 
 # ---------------------------------------------------------
@@ -221,6 +222,14 @@ def main():
 
     lambda_data
 
+)
+    send_teams_notification(
+    account,
+    ec2_data,
+    rds_data,
+    asg_data,
+    cloudwatch_data,
+    lambda_data
 )
 
     print("\nFramework Initialization Completed Successfully.")

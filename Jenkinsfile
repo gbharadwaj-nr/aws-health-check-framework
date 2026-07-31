@@ -118,8 +118,15 @@ pipeline {
             steps {
 
                 withCredentials([
+
                     [$class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-master-account']
+                    credentialsId: 'aws-master-account'],
+
+                    string(
+                        credentialsId: 'teams-webhook',
+                        variable: 'TEAMS_WEBHOOK'
+                    )
+
                 ]) {
 
                     bat '''
@@ -140,9 +147,7 @@ pipeline {
                     '''
 
                 }
-
             }
-
         }
 
         stage('Verify Generated Reports') {

@@ -134,10 +134,32 @@ pipeline {
 
             steps {
 
-                archiveArtifacts artifacts: 'output/**/*', allowEmptyArchive: true
+                bat '''
+                echo.
+                echo ======================================
+                echo OUTPUT FOLDER CONTENTS
+                echo ======================================
+                dir output /s
+                '''
+
+                archiveArtifacts(
+                    artifacts: 'output/**/*',
+                    fingerprint: true,
+                    allowEmptyArchive: false
+                )
+
+                publishHTML(target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'output/latest',
+                    reportFiles: 'Executive_Report.html',
+                    reportName: 'AWS Daily Health Report'
+                ])
 
             }
-        }
+
+}
 
     }
 

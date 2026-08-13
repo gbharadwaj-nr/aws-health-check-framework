@@ -18,6 +18,7 @@ from checks.rds import check_rds
 from checks.asg import check_asg
 from checks.cloudwatch import check_cloudwatch
 from checks.lambda_health import check_lambda
+from checks.batch_log_check import check_batch_log
 
 from reports.report_utils import create_output_folder
 from reports.html_report import generate_html_report
@@ -159,6 +160,9 @@ def main():
     print("Running Lambda Health Check...")
     lambda_data = check_lambda(session, regions)
 
+    print("Running Batch Log Check...")
+    batch_log_data = check_batch_log(session, regions, keyword="flag", hours=24)
+
     # ---------------------------------------------------------
     # Build Report Object
     # ---------------------------------------------------------
@@ -179,7 +183,9 @@ def main():
 
         "cloudwatch": cloudwatch_data,
 
-        "lambda": lambda_data
+        "lambda": lambda_data,
+
+        "batch_log": batch_log_data
 
     }
 
@@ -206,39 +212,40 @@ def main():
     print(f"Healthy Lambda        : {lambda_data['healthy']}")
     print(f"Total Lambda          : {lambda_data['total']}")
 
+    print(f"Batch Log Group       : {batch_log_data['log_group']}")
+    print(f"Batch Log Stream      : {batch_log_data['log_stream']}")
+    print(f"Batch Log Status      : {batch_log_data['status']}")
+    print(f"Keyword Matches (24h) : {batch_log_data['match_count']}")
+
+    if batch_log_data.get("error"):
+        print(f"Batch Log Error       : {batch_log_data['error']}")
+
+    # ---------------------------------------------------------
+    # Reports & Notifications
+    # ---------------------------------------------------------
+
     generate_html_report(
+        output_folder,
+        account,
+        ec2_data,
+        rds_data,
+        asg_data,
+        cloudwatch_data,
+        lambda_data,
+        batch_log_data
+    )
 
-    output_folder,
-
-    account,
-
-    ec2_data,
-
-    rds_data,
-
-    asg_data,
-
-    cloudwatch_data,
-
-    lambda_data
-
-)
     send_teams_notification(
-    account,
-    ec2_data,
-    rds_data,
-    asg_data,
-    cloudwatch_data,
-    lambda_data
-)
+        account,
+        ec2_data,
+        rds_data,
+        asg_data,
+        cloudwatch_data,
+        lambda_data,
+        batch_log_data
+    )
 
     print("\nFramework Initialization Completed Successfully.")
-
-    # ---------------------------------------------------------
-    # HTML Report (Next Step)
-    # ---------------------------------------------------------
-
-    # generate_html_report(report_data, output_folder)
 
 
 if __name__ == "__main__":

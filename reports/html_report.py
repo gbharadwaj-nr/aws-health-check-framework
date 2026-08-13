@@ -15,7 +15,8 @@ def generate_html_report(
     rds_data,
     asg_data,
     cloudwatch_data,
-    lambda_data
+    lambda_data,
+    batch_log_data=None
 ):
     """
     Generates the Executive HTML Report.
@@ -56,6 +57,7 @@ def generate_html_report(
     report += f"<tr><td>Auto Scaling</td><td>{asg_data['healthy']} Healthy / {asg_data['total']} Total</td></tr>"
     report += f"<tr><td>CloudWatch</td><td>{cloudwatch_data['alarm_count']} Active Alarm(s)</td></tr>"
     report += f"<tr><td>Lambda</td><td>{lambda_data['healthy']} Healthy / {lambda_data['total']} Total</td></tr>"
+    report += f"<tr><td>Batch Log</td><td>{batch_log_data['status']} ({batch_log_data['match_count']} match(es) in 24h)</td></tr>"
 
     report += "</table><br>"
 
@@ -194,7 +196,65 @@ def generate_html_report(
         </tr>
         """
 
-    report += "</table>"
+    report += "</table><br>"
+
+    # ==========================================================
+    # Batch Log Check
+    # ==========================================================
+
+    if batch_log_data:
+
+        report += "<h2>Batch Log Check</h2>"
+
+        report += """
+        <table>
+        <tr>
+            <th>Attribute</th>
+            <th>Value</th>
+        </tr>
+        """
+
+        report += f"<tr><td>Region</td><td>{batch_log_data.get('region') or 'N/A'}</td></tr>"
+        report += f"<tr><td>Log Group</td><td>{batch_log_data.get('log_group') or 'Not Found'}</td></tr>"
+        report += f"<tr><td>Log Stream</td><td>{batch_log_data.get('log_stream') or 'Not Found'}</td></tr>"
+        report += f"<tr><td>Keyword</td><td>{batch_log_data.get('keyword', 'flag')}</td></tr>"
+        report += f"<tr><td>Status</td><td>{batch_log_data.get('status')}</td></tr>"
+        report += f"<tr><td>Matches (24h)</td><td>{batch_log_data.get('match_count', 0)}</td></tr>"
+
+        if batch_log_data.get("error"):
+            report += f"<tr><td>Error</td><td>{batch_log_data['error']}</td></tr>"
+
+        report += "</table><br>"
+
+        if batch_log_data.get("matches"):
+
+            report += "<h3>Matched Log Entries</h3>"
+
+            report += """
+            <table>
+            <tr>
+                <th>Timestamp</th>
+                <th>Message</th>
+            </tr>
+            """
+
+            for entry in batch_log_data["matches"]:
+
+                message = (
+                    entry["message"]
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                )
+
+                report += f"""
+                <tr>
+                    <td>{entry['timestamp']}</td>
+                    <td>{message}</td>
+                </tr>
+                """
+
+            report += "</table>"
 
     # ==========================================================
     # Read HTML Template
